@@ -19,3 +19,10 @@ sources:
 maintainers:
   - name: Pavan Madduri
     email: pavan4devops@gmail.com
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://keda-gpu-scaler.readthedocs.io/en/latest/
+    - name: KEDA Issue
+      url: https://github.com/kedacore/keda/issues/7538
