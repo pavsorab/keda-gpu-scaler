@@ -53,7 +53,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "nvml init failed: %v\n", err)
 		os.Exit(1)
 	}
-	defer collector.Close()
+	defer func() { _ = collector.Close() }()
 
 	// one-shot
 	if *interval <= 0 {
@@ -114,14 +114,14 @@ func output(metrics []gpu.Metrics, format string) {
 func outputJSON(metrics []gpu.Metrics) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	enc.Encode(metrics)
+	_ = enc.Encode(metrics)
 }
 
 func outputCSV(metrics []gpu.Metrics) {
 	w := csv.NewWriter(os.Stdout)
-	w.Write(csvHeader())
+	_ = w.Write(csvHeader())
 	for _, m := range metrics {
-		w.Write(csvRow(m))
+		_ = w.Write(csvRow(m))
 	}
 	w.Flush()
 }
