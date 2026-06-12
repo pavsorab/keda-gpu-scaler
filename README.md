@@ -61,26 +61,9 @@ This design is documented in [KEDA issue #7538](https://github.com/kedacore/keda
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  GPU Node (DaemonSet)                                    │
-│                                                          │
-│   ┌───────────────────┐       ┌────────────────────────┐ │
-│   │  keda-gpu-scaler  │◄─────►│ NVIDIA GPU (NVML)      │ │
-│   │  gRPC :6000       │       │ libnvidia-ml.so        │ │
-│   │                   │       │ A100 / H100 / L40S ... │ │
-│   └─────────▲─────────┘       └────────────────────────┘ │
-│             │                                            │
-└─────────────┼────────────────────────────────────────────┘
-              │ gRPC (ExternalScaler protocol)
-┌─────────────┼────────────────────────────────────────────┐
-│  KEDA       │                                            │
-│   ┌─────────▼──────────┐      ┌────────────────────────┐ │
-│   │  External Scaler   │─────►│  HPA (scale up/down)   │ │
-│   │  trigger           │      │  your-vllm-deployment  │ │
-│   └────────────────────┘      └────────────────────────┘ │
-└──────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="keda-gpu-scaler architecture" width="100%"/>
+</p>
 
 1. **DaemonSet** — Runs on nodes labeled with `nvidia.com/gpu.present: "true"`.
 2. **NVML Bindings** — Directly reads Streaming Multiprocessor (SM) utilization and Frame Buffer Memory via `go-nvml` C-bindings.
