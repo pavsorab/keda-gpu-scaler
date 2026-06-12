@@ -261,6 +261,9 @@ probes:
 
 This project requires `CGO_ENABLED=1` to compile the NVIDIA C-bindings.
 
+> [!NOTE]
+> The compiled binaries (`keda-gpu-scaler` and `gpu-metrics`) dynamically link NVIDIA's NVML library and load `libnvidia-ml.so` at runtime. They will **fail to start on any machine that does not have the NVIDIA driver installed** (which provides `libnvidia-ml.so`) — for example, a laptop or CI runner with no NVIDIA GPU. You can still build, lint, and run the test suite without a GPU, since the tests use a mock collector (see [Can I run this without a GPU?](docs/FAQ.md#can-i-run-this-without-a-gpu-for-development)).
+
 ```bash
 # Build KEDA scaler binary (requires CGO for NVML)
 make build
@@ -290,6 +293,9 @@ make deploy
 ### Standalone GPU Metrics CLI
 
 Collect GPU metrics without Kubernetes — works on bare metal, SLURM jobs, Singularity containers.
+
+> [!IMPORTANT]
+> `gpu-metrics` requires `libnvidia-ml.so` (installed with the NVIDIA driver) on the host. On a machine without an NVIDIA driver it exits immediately with `nvml init failed`.
 
 ```bash
 gpu-metrics                       # one-shot table output
