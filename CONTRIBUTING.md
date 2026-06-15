@@ -30,9 +30,28 @@ make lint     # Run golangci-lint
 make proto    # Regenerate protobuf Go code
 ```
 
+> [!NOTE]
+> The compiled binaries (`keda-gpu-scaler` and `gpu-metrics`) dynamically link NVIDIA's NVML library (`libnvidia-ml.so`) at runtime. **They will fail to start on any machine that does not have the NVIDIA driver installed** — for example, a laptop or CI runner with no NVIDIA GPU. You can still build, lint, and run the full test suite without a GPU; all tests use a mock collector.
+
 ### Testing on a GPU Cluster
 
-The binary requires NVIDIA GPUs and drivers to run. For local development without GPUs, unit tests cover all parsing, aggregation, and metric extraction logic.
+The binary requires NVIDIA GPU drivers (`libnvidia-ml.so`) to run. For local development without GPUs, unit tests cover all parsing, aggregation, and metric extraction logic.
+
+## Cutting a Release
+
+Releases are fully automated via GitHub Actions. To publish a new release:
+
+1. Ensure all changes are merged to `main`.
+2. Push a semver version tag (`vX.Y.Z` — the release workflow triggers on `v*`, so
+   make sure the tag is valid semver to avoid a broken release):
+   ```bash
+   git tag v0.5.0
+   git push origin v0.5.0
+   ```
+3. The [release workflow](https://github.com/pmady/keda-gpu-scaler/actions/workflows/release.yaml) will:
+   - Build and push multi-arch Docker images (`linux/amd64`, `linux/arm64`) to GHCR
+   - Compile release binaries for both architectures
+   - Create a GitHub Release with an auto-generated changelog and attach the binaries
 
 ## Code Style
 

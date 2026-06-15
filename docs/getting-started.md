@@ -6,6 +6,8 @@
 - [KEDA v2.10+](https://keda.sh/docs/latest/deploy/) installed
 - NVIDIA GPU drivers and [Device Plugin](https://github.com/NVIDIA/k8s-device-plugin) installed
 
+> **Note:** The scaler links NVML and loads `libnvidia-ml.so` at runtime. The binary (and the container image) will not start on a host that lacks the NVIDIA driver. On GPU nodes the driver supplies this library; for local development without a GPU, use the mock collector exercised by the test suite instead of running the binary directly.
+
 ## Deploy the Scaler
 
 Make sure KEDA is already running, then deploy:

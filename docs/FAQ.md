@@ -10,6 +10,8 @@ If you also use dcgm-exporter for Grafana dashboards or alerting, keep it runnin
 
 Yes. NVML reads GPU state through `libnvidia-ml.so`, which is installed with the NVIDIA driver. If you're running GPU workloads on Kubernetes, you already have this.
 
+The binaries link NVML at runtime, so they **will not start on a machine that lacks `libnvidia-ml.so`** — for example, a laptop or CI runner without an NVIDIA driver. In that case the process exits immediately with an `nvml init failed` / `failed to initialize NVML` error. To develop without a GPU, use the mock collector (see below) rather than running the binary directly.
+
 ## Can I run this without a GPU for development?
 
 Yes. The project has a mock GPU collector (`pkg/gpu/mock.go`) used by all unit and e2e tests. You can build, test, and develop the full gRPC path without GPU hardware.
