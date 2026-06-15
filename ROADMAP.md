@@ -1,0 +1,35 @@
+# Roadmap
+
+Technical direction for keda-gpu-scaler. Updated as priorities shift.
+
+## Current (v0.4.x)
+
+- NVIDIA GPU support via NVML
+- Pre-built scaling profiles (vLLM, Triton, training, batch)
+- Helm chart deployment
+- Prometheus metrics endpoint
+- SLURM and Flux workload manager integration
+- PCIe and NVLink throughput metrics
+
+## Next (v0.5.x)
+
+- **MIG support** — Per-instance metrics for Multi-Instance GPU partitions
+- **vLLM queue depth** — Scale on pending requests via vLLM engine API
+- **Improved aggregation** — Weighted averages, percentile-based thresholds
+
+## Future
+
+- **AMD ROCm** — Same DaemonSet pattern with rocm-smi bindings
+- **Intel Gaudi** — Habana Management Library integration
+- **Multi-cluster** — Federated scaling decisions across GPU clusters
+- **Cost-aware scaling** — Factor in spot/preemptible pricing
+
+## Non-Goals
+
+- Replacing DCGM exporter for observability (use both — this project is for scaling, not dashboards)
+- GPU sharing/virtualization (use HAMi, MIG, or time-slicing instead)
+- Node-level autoscaling (use Karpenter or Cluster Autoscaler)
+
+## How to Influence
+
+Open an issue or discussion. If you're running into a real problem, that moves things up the list.
