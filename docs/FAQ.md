@@ -1,5 +1,27 @@
 # FAQ
 
+## Can I compare GPU performance across on-prem (SLURM/Flux) and cloud (Kubernetes)?
+
+Yes — that's what the `--env` flag and unified JSON schema are designed for. The same `gpu-metrics` binary runs in all environments and emits an identical JSON structure with an `environment` block that records where the sample was collected:
+
+```bash
+# On-prem SLURM job
+srun --gres=gpu:2 gpu-metrics --format json > slurm.json
+
+# Kubernetes pod
+kubectl exec train-pod -- gpu-metrics --format json > k8s.json
+
+# Compare with jq
+jq -s 'map({env: .environment.orchestrator, avg_util: (.devices | map(.GPUUtilization) | add/length)})' \
+  slurm.json k8s.json
+```
+
+See [Cross-Environment Comparison Guide](cross-env-comparison.md) for full examples.
+
+## Why did the --slurm and --flux flags change?
+
+They were replaced by a single `--env auto|k8s|slurm|flux|standalone` flag. The old per-scheduler flags didn't support Kubernetes mode and produced separate, incompatible JSON schemas. The new `--env` flag auto-detects the environment and always emits the same unified schema.
+
 ## Does this replace dcgm-exporter?
 
 For autoscaling, yes. If you only use dcgm-exporter to feed metrics into KEDA for scaling decisions, keda-gpu-scaler replaces the entire dcgm-exporter → Prometheus → PromQL pipeline.

@@ -113,6 +113,41 @@ kubectl logs -n keda -l app=keda-gpu-scaler
 kubectl get scaledobject -A -o yaml | grep -A5 external
 ```
 
+## Cross-Environment GPU Metrics (`pkg/env`)
+
+The `gpu-metrics` CLI targets HPC and cloud environments equally. The `pkg/env` package centralises all orchestrator detection and metadata so the rest of the codebase never branches on scheduler type.
+
+### Environment detection
+
+`env.Detect()` inspects process environment variables in priority order:
+
+1. `SLURM_JOB_ID` → SLURM
+2. `FLUX_JOB_ID` → Flux
+3. `KUBERNETES_SERVICE_HOST` → Kubernetes (injected by kubelet into every pod)
+4. Otherwise → Standalone
+
+`env.Parse(flagValue)` converts the `--env` flag string to an `env.Type`. The value `"auto"` triggers `Detect()`.
+
+### Unified Context
+
+`env.FromType(t)` returns an `env.Context` struct with orchestrator-agnostic fields (`Orchestrator`, `NodeName`, `JobID`, `TaskRank`) plus environment-specific extras (`Partition` for SLURM, `FluxURI` for Flux, `PodName`/`Namespace` for Kubernetes). All fields are JSON-serialised into the top-level `environment` block of every output document.
+
+The unexported `visibleDevices []int` field carries the scheduler-assigned GPU indices so `gpu-metrics` can restrict NVML collection to the right devices without any scheduler-specific code in the CLI itself.
+
+### Unified JSON schema
+
+Before this package, the JSON output had a `slurm` or `flux` top-level key that changed depending on the runtime. Any downstream parser had to branch on which key was present. The new schema is always:
+
+```
+{ "environment": { ... }, "collected_at": "...", "devices": [...] }
+```
+
+This makes cross-environment comparison trivially composable with `jq`, pandas, or any streaming JSON processor.
+
+### Kubernetes Downward API
+
+For Kubernetes, `NODE_NAME`, `POD_NAME`, and `POD_NAMESPACE` must be exposed via the Downward API (not auto-set by the runtime). The deployment manifests and Helm chart include these mappings so the metadata is populated out of the box.
+
 ## Security Considerations
 
 - The DaemonSet needs read-only access to NVIDIA device files — no cluster-wide RBAC

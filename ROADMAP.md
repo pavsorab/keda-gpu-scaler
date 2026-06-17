@@ -13,6 +13,7 @@ Technical direction for keda-gpu-scaler. Updated as priorities shift.
 
 ## Next (v0.5.x)
 
+- ✅ **Cross-environment GPU metrics parity** — unified `--env` flag and JSON schema across Kubernetes, SLURM, Flux, and standalone. Compare GPU performance across on-prem and cloud with the same binary and tooling. ([#54](https://github.com/pmady/keda-gpu-scaler/issues/54))
 - **MIG support** — Per-instance metrics for Multi-Instance GPU partitions
 - **vLLM queue depth** — Scale on pending requests via vLLM engine API
 - **Improved aggregation** — Weighted averages, percentile-based thresholds

@@ -27,19 +27,18 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pmady/keda-gpu-scaler/pkg/flux"
-	"github.com/pmady/keda-gpu-scaler/pkg/gpu"
-	"github.com/pmady/keda-gpu-scaler/pkg/slurm"
 	"go.uber.org/zap"
+
+	"github.com/pmady/keda-gpu-scaler/pkg/env"
+	"github.com/pmady/keda-gpu-scaler/pkg/gpu"
 )
 
 var (
-	format    = flag.String("format", "table", "Output format: table, json, csv")
-	interval  = flag.Duration("interval", 0, "Collection interval (0 = one-shot)")
-	device    = flag.Int("device", -1, "GPU device index (-1 = all)")
-	quiet     = flag.Bool("quiet", false, "Suppress log output")
-	slurmMode = flag.String("slurm", "auto", "SLURM mode: auto, on, off")
-	fluxMode  = flag.String("flux", "auto", "Flux mode: auto, on, off")
+	format  = flag.String("format", "table", "Output format: table, json, csv")
+	interval = flag.Duration("interval", 0, "Collection interval (0 = one-shot)")
+	device  = flag.Int("device", -1, "GPU device index (-1 = all)")
+	quiet   = flag.Bool("quiet", false, "Suppress log output")
+	envFlag = flag.String("env", "auto", "Environment: auto, k8s, slurm, flux, standalone")
 )
 
 func main() {
@@ -52,6 +51,19 @@ func main() {
 	}
 	defer func() { _ = logger.Sync() }()
 
+	// Resolve environment context once at startup.
+	envType := env.Parse(*envFlag)
+	envCtx := env.FromType(envType)
+
+	if !*quiet {
+		logger.Info("Environment detected",
+			zap.String("orchestrator", envCtx.Orchestrator),
+			zap.String("node", envCtx.NodeName),
+			zap.String("job_id", envCtx.JobID),
+			zap.Int("task_rank", envCtx.TaskRank),
+		)
+	}
+
 	collector, err := gpu.NewCollector(logger)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "nvml init failed: %v\n", err)
@@ -59,40 +71,14 @@ func main() {
 	}
 	defer func() { _ = collector.Close() }()
 
-	// detect SLURM
-	var slurmCtx *slurm.JobContext
-	if useSLURM(*slurmMode) {
-		ctx := slurm.FromEnv()
-		slurmCtx = &ctx
-		if !*quiet {
-			logger.Info("SLURM job detected",
-				zap.String("job_id", ctx.JobID),
-				zap.String("node", ctx.NodeName),
-				zap.String("gpus", ctx.GPUs))
-		}
-	}
-
-	// detect Flux (mutually exclusive with SLURM in practice, but both are allowed)
-	var fluxCtx *flux.JobContext
-	if slurmCtx == nil && useFlux(*fluxMode) {
-		ctx := flux.FromEnv()
-		fluxCtx = &ctx
-		if !*quiet {
-			logger.Info("Flux job detected",
-				zap.String("job_id", ctx.JobID),
-				zap.Int("task_rank", ctx.TaskRank),
-				zap.String("gpus", ctx.GPUs))
-		}
-	}
-
 	// one-shot
 	if *interval <= 0 {
-		metrics, err := collect(collector, slurmCtx, fluxCtx)
+		metrics, err := collect(collector, envCtx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "collection failed: %v\n", err)
 			os.Exit(1)
 		}
-		output(metrics, *format, slurmCtx, fluxCtx)
+		output(metrics, *format, envCtx)
 		return
 	}
 
@@ -104,11 +90,11 @@ func main() {
 	defer ticker.Stop()
 
 	for {
-		metrics, err := collect(collector, slurmCtx, fluxCtx)
+		metrics, err := collect(collector, envCtx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "collection failed: %v\n", err)
 		} else {
-			output(metrics, *format, slurmCtx, fluxCtx)
+			output(metrics, *format, envCtx)
 		}
 
 		select {
@@ -119,31 +105,9 @@ func main() {
 	}
 }
 
-func useSLURM(mode string) bool {
-	switch mode {
-	case "on":
-		return true
-	case "off":
-		return false
-	default: // auto
-		return slurm.Detect()
-	}
-}
-
-func useFlux(mode string) bool {
-	switch mode {
-	case "on":
-		return true
-	case "off":
-		return false
-	default: // auto
-		return flux.Detect()
-	}
-}
-
 // collect gathers metrics for the appropriate set of GPUs.
 // Priority: --device flag > scheduler-assigned GPUs > all GPUs.
-func collect(c gpu.MetricsCollector, sctx *slurm.JobContext, fctx *flux.JobContext) ([]gpu.Metrics, error) {
+func collect(c gpu.MetricsCollector, envCtx env.Context) ([]gpu.Metrics, error) {
 	if *device >= 0 {
 		m, err := c.CollectDevice(*device)
 		if err != nil {
@@ -152,18 +116,8 @@ func collect(c gpu.MetricsCollector, sctx *slurm.JobContext, fctx *flux.JobConte
 		return []gpu.Metrics{m}, nil
 	}
 
-	// SLURM: collect only assigned GPUs
-	if sctx != nil {
-		if devs := sctx.VisibleDevices(); len(devs) > 0 {
-			return collectDevices(c, devs)
-		}
-	}
-
-	// Flux: collect only assigned GPUs
-	if fctx != nil {
-		if devs := fctx.VisibleDevices(); len(devs) > 0 {
-			return collectDevices(c, devs)
-		}
+	if devs := envCtx.VisibleDevices(); len(devs) > 0 {
+		return collectDevices(c, devs)
 	}
 
 	return c.CollectAll()
@@ -182,59 +136,72 @@ func collectDevices(c gpu.MetricsCollector, devs []int) ([]gpu.Metrics, error) {
 	return out, nil
 }
 
-func output(metrics []gpu.Metrics, format string, sctx *slurm.JobContext, fctx *flux.JobContext) {
+func output(metrics []gpu.Metrics, format string, envCtx env.Context) {
 	switch format {
 	case "json":
-		outputJSON(metrics, sctx, fctx)
+		outputJSON(metrics, envCtx)
 	case "csv":
-		outputCSV(metrics, sctx, fctx)
+		outputCSV(metrics, envCtx)
 	default:
-		outputTable(metrics, sctx, fctx)
+		outputTable(metrics, envCtx)
 	}
 }
 
+// jsonOutput is the unified JSON schema emitted across all environments.
+// The "environment" block lets consumers compare runs from different
+// orchestrators without any schema changes.
 type jsonOutput struct {
-	SLURM   *slurm.JobContext `json:"slurm,omitempty"`
-	Flux    *flux.JobContext  `json:"flux,omitempty"`
-	Devices []gpu.Metrics     `json:"devices"`
+	Environment env.Context   `json:"environment"`
+	CollectedAt time.Time     `json:"collected_at"`
+	Devices     []gpu.Metrics `json:"devices"`
 }
 
-func outputJSON(metrics []gpu.Metrics, sctx *slurm.JobContext, fctx *flux.JobContext) {
+func outputJSON(metrics []gpu.Metrics, envCtx env.Context) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	_ = enc.Encode(jsonOutput{SLURM: sctx, Flux: fctx, Devices: metrics})
+	_ = enc.Encode(jsonOutput{
+		Environment: envCtx,
+		CollectedAt: time.Now().UTC(),
+		Devices:     metrics,
+	})
 }
 
-func outputCSV(metrics []gpu.Metrics, sctx *slurm.JobContext, fctx *flux.JobContext) {
+func outputCSV(metrics []gpu.Metrics, envCtx env.Context) {
 	w := csv.NewWriter(os.Stdout)
-	hdr := csvHeader()
-	if sctx != nil {
-		hdr = append(sctx.Header(), hdr...)
-	} else if fctx != nil {
-		hdr = append(fctx.Header(), hdr...)
-	}
+
+	// Environment columns prefix GPU columns.
+	hdr := append(envCtx.Header(), csvHeader()...)
 	_ = w.Write(hdr)
+
 	for _, m := range metrics {
-		row := csvRow(m)
-		if sctx != nil {
-			row = append(sctx.Row(), row...)
-		} else if fctx != nil {
-			row = append(fctx.Row(), row...)
-		}
+		row := append(envCtx.Row(), csvRow(m)...)
 		_ = w.Write(row)
 	}
 	w.Flush()
 }
 
-func outputTable(metrics []gpu.Metrics, sctx *slurm.JobContext, fctx *flux.JobContext) {
-	if sctx != nil {
-		fmt.Printf("SLURM Job %s (%s) — node %s, rank %d, gpus [%s]\n\n",
-			sctx.JobID, sctx.JobName, sctx.NodeName, sctx.ProcID, sctx.GPUs)
+func outputTable(metrics []gpu.Metrics, envCtx env.Context) {
+	// Print environment banner.
+	fmt.Printf("Environment : %s", envCtx.Orchestrator)
+	if envCtx.NodeName != "" {
+		fmt.Printf("  |  Node: %s", envCtx.NodeName)
 	}
-	if fctx != nil {
-		fmt.Printf("Flux Job %s — task rank %d, local rank %d, gpus [%s]\n\n",
-			fctx.JobID, fctx.TaskRank, fctx.LocalID, fctx.GPUs)
+	if envCtx.JobID != "" {
+		fmt.Printf("  |  Job: %s  |  Rank: %d", envCtx.JobID, envCtx.TaskRank)
 	}
+	if envCtx.PodName != "" {
+		fmt.Printf("  |  Pod: %s", envCtx.PodName)
+	}
+	if envCtx.Namespace != "" {
+		fmt.Printf("  |  Namespace: %s", envCtx.Namespace)
+	}
+	if envCtx.Partition != "" {
+		fmt.Printf("  |  Partition: %s", envCtx.Partition)
+	}
+	fmt.Println()
+	fmt.Println()
+
+	// GPU table.
 	fmt.Printf("%-5s %-20s %6s %6s %10s %10s %6s %6s %10s %10s %10s %10s\n",
 		"GPU", "Name", "Util%", "Mem%", "MemUsed", "MemTotal", "Temp", "Power",
 		"PCIeTx", "PCIeRx", "NVLTx", "NVLRx")

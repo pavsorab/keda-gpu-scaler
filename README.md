@@ -261,32 +261,45 @@ make deploy
 
 ### Standalone GPU Metrics CLI
 
-Collect GPU metrics without Kubernetes — works on bare metal, SLURM jobs, Flux jobs, and Singularity containers.
+Collect GPU metrics without Kubernetes — works on bare metal, SLURM jobs, Flux jobs, Kubernetes pods, and Singularity containers. The same binary and the same JSON schema work everywhere.
 
 > [!IMPORTANT]
 > `gpu-metrics` requires `libnvidia-ml.so` (installed with the NVIDIA driver) on the host. On a machine without an NVIDIA driver it exits immediately with `nvml init failed`.
 
 ```bash
-gpu-metrics                       # one-shot table output
+gpu-metrics                       # one-shot table output (env auto-detected)
 gpu-metrics --format json         # JSON for scripting
 gpu-metrics --format csv          # CSV for analysis
 gpu-metrics --interval 5s         # continuous collection
 gpu-metrics --device 0 --quiet    # single GPU, no logs
+gpu-metrics --env slurm           # force environment (auto|k8s|slurm|flux|standalone)
 ```
 
-**SLURM** — auto-detected when `SLURM_JOB_ID` is set. Collects only the GPUs assigned to your job step:
+The `--env` flag auto-detects the orchestrator by default. Detection priority: **SLURM → Flux → Kubernetes → standalone**.
+
+Every environment emits the same unified JSON schema with an `environment` block so you can compare GPU performance across on-prem and cloud with identical tooling:
+
+```json
+{
+  "environment": { "orchestrator": "slurm", "node": "compute-01", "job_id": "123", "task_rank": 0 },
+  "collected_at": "2026-06-17T10:00:00Z",
+  "devices": [...]
+}
+```
+
+**SLURM** — auto-detected when `SLURM_JOB_ID` is set; collects only the GPUs assigned to your job step:
 
 ```bash
 srun --gres=gpu:2 gpu-metrics --format json
 ```
 
-**Flux** — auto-detected when `FLUX_JOB_ID` is set. Collects only the GPUs in `CUDA_VISIBLE_DEVICES`:
+**Flux** — auto-detected when `FLUX_JOB_ID` is set; collects only the GPUs in `CUDA_VISIBLE_DEVICES`:
 
 ```bash
 flux run -N1 -g2 gpu-metrics --format json
 ```
 
-See **[HPC Integration](docs/hpc.md)** for SLURM/Flux usage, CSV context columns, and Singularity examples.
+See **[HPC & Cross-Environment Metrics](docs/hpc.md)** for full usage, and **[Cross-Environment Comparison Guide](docs/cross-env-comparison.md)** for comparing on-prem vs cloud GPU runs.
 
 Or build the Docker image directly:
 
@@ -315,7 +328,8 @@ docker push your-registry/keda-gpu-scaler:v0.1.0
 
 - **[Design Document](docs/DESIGN.md)** — Architecture decisions, gRPC interface, scaling profiles, testing strategy
 - **[Migration Guide](docs/MIGRATION.md)** — Replace dcgm-exporter + Prometheus with keda-gpu-scaler
-- **[HPC Integration](docs/hpc.md)** — SLURM and Flux workload manager support
+- **[HPC & Cross-Environment Metrics](docs/hpc.md)** — SLURM, Flux, Kubernetes, and standalone GPU metrics
+- **[Cross-Environment Comparison](docs/cross-env-comparison.md)** — Compare GPU performance across on-prem and cloud
 - **[FAQ](docs/FAQ.md)** — Common questions about GPU scaling, MIG, multi-GPU, scale-to-zero
 - **[Changelog](CHANGELOG.md)** — Release history
 

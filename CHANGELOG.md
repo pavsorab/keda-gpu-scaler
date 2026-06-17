@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Cross-environment GPU metrics parity** (`--env` flag) — single binary and unified JSON schema across Kubernetes, SLURM, Flux, and standalone. The new `pkg/env` package auto-detects the orchestrator (priority: SLURM → Flux → Kubernetes → standalone) and populates a common `environment` block in all output formats (JSON, CSV, table). Replaces the separate `--slurm` and `--flux` flags.
+- Unified JSON output schema with top-level `environment` and `collected_at` fields, enabling direct comparison of GPU metrics across environments.
+- `pkg/env` package: `Detect()`, `Parse()`, `FromType()`, `Context` with `VisibleDevices()`, `Header()`, `Row()`.
+- Kubernetes environment detection via `KUBERNETES_SERVICE_HOST`; pod/node/namespace metadata via Downward API env vars (`NODE_NAME`, `POD_NAME`, `POD_NAMESPACE`).
+- `keda-gpu-scaler` (KEDA scaler binary) now logs runtime environment metadata (orchestrator, node, pod, namespace) at startup.
+- `docs/cross-env-comparison.md` — guide for comparing GPU performance across on-prem and cloud environments with `jq` recipes and CSV examples.
 - HTTP health probes (`--probe-port=8081`) with `/healthz` and `/readyz` endpoints
 - PCIe bandwidth metrics: `pcie_tx_kbps`, `pcie_rx_kbps` for CPU↔GPU throughput monitoring
 - NVLink bandwidth metrics: `nvlink_tx_mbps`, `nvlink_rx_mbps` for GPU↔GPU communication monitoring
