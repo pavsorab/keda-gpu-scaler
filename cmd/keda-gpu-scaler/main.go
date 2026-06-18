@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	pb "github.com/pmady/keda-gpu-scaler/pkg/externalscaler"
+	"github.com/pmady/keda-gpu-scaler/pkg/env"
 	"github.com/pmady/keda-gpu-scaler/pkg/gpu"
 	"github.com/pmady/keda-gpu-scaler/pkg/metrics"
 	"github.com/pmady/keda-gpu-scaler/pkg/probes"
@@ -59,6 +60,16 @@ func main() {
 		zap.Int("metricsPort", *metricsPort),
 		zap.Int("probePort", *probePort),
 		zap.String("logLevel", *logLevel),
+	)
+
+	// Log environment metadata so operators can correlate scaler logs with
+	// GPU metrics collected by the standalone binary.
+	envCtx := env.FromType(env.Detect())
+	logger.Info("Runtime environment",
+		zap.String("orchestrator", envCtx.Orchestrator),
+		zap.String("node", envCtx.NodeName),
+		zap.String("pod", envCtx.PodName),
+		zap.String("namespace", envCtx.Namespace),
 	)
 
 	var probeState probes.State
