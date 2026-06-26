@@ -24,8 +24,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 // EngineMetrics holds the metrics scraped from a vLLM instance.
@@ -40,18 +38,16 @@ type EngineMetrics struct {
 type Client struct {
 	endpoint   string // e.g. "http://vllm-svc:8000/metrics"
 	httpClient *http.Client
-	logger     *zap.Logger
 }
 
 // NewClient creates a vLLM metrics client. endpoint is the full URL
 // including path, e.g. "http://vllm-svc:8000/metrics".
-func NewClient(endpoint string, logger *zap.Logger) *Client {
+func NewClient(endpoint string) *Client {
 	return &Client{
 		endpoint: endpoint,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
-		logger: logger,
 	}
 }
 

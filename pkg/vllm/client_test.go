@@ -22,8 +22,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"go.uber.org/zap"
 )
 
 const sampleMetrics = `# HELP vllm:num_requests_waiting Number of requests waiting
@@ -131,7 +129,7 @@ func TestClient_Scrape(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient(ts.URL, zap.NewNop())
+	c := NewClient(ts.URL)
 	m, err := c.Scrape()
 	if err != nil {
 		t.Fatalf("Scrape() error = %v", err)
@@ -150,7 +148,7 @@ func TestClient_Scrape_ServerError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient(ts.URL, zap.NewNop())
+	c := NewClient(ts.URL)
 	_, err := c.Scrape()
 	if err == nil {
 		t.Error("Scrape() expected error for 500 response, got nil")
@@ -158,7 +156,7 @@ func TestClient_Scrape_ServerError(t *testing.T) {
 }
 
 func TestClient_Scrape_Unreachable(t *testing.T) {
-	c := NewClient("http://127.0.0.1:1", zap.NewNop())
+	c := NewClient("http://127.0.0.1:1")
 	_, err := c.Scrape()
 	if err == nil {
 		t.Error("Scrape() expected error for unreachable endpoint, got nil")

@@ -240,7 +240,7 @@ func (s *GPUExternalScaler) getVLLMClient(endpoint string) *vllm.Client {
 	if c, ok := s.vllmClients[endpoint]; ok {
 		return c
 	}
-	c := vllm.NewClient(endpoint, s.logger)
+	c := vllm.NewClient(endpoint)
 	s.vllmClients[endpoint] = c
 	return c
 }

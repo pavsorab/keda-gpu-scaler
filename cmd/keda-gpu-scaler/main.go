@@ -98,8 +98,8 @@ func main() {
 		logger.Fatal("Failed to initialize GPU collector", zap.Error(err))
 	}
 	defer func() {
-		if err := collector.Close(); err != nil {
-			logger.Warn("Failed to close GPU collector", zap.Error(err))
+		if closeErr := collector.Close(); closeErr != nil {
+			logger.Warn("Failed to close GPU collector", zap.Error(closeErr))
 		}
 	}()
 
@@ -114,8 +114,8 @@ func main() {
 		metricsAddr := fmt.Sprintf(":%d", *metricsPort)
 		go func() {
 			logger.Info("Prometheus metrics server listening", zap.String("address", metricsAddr))
-			if err := http.ListenAndServe(metricsAddr, mux); err != nil && err != http.ErrServerClosed {
-				logger.Fatal("Metrics server failed", zap.Error(err))
+			if listenErr := http.ListenAndServe(metricsAddr, mux); listenErr != nil && listenErr != http.ErrServerClosed {
+				logger.Fatal("Metrics server failed", zap.Error(listenErr))
 			}
 		}()
 	} else {
