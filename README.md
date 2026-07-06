@@ -364,6 +364,7 @@ docker push your-registry/keda-gpu-scaler:v0.1.0
 
 ## Documentation
 
+- **[Full documentation](https://keda-gpu-scaler.readthedocs.io)** — hosted on Read the Docs
 - **[Design Document](docs/DESIGN.md)** — Architecture decisions, gRPC interface, scaling profiles, testing strategy
 - **[Migration Guide](docs/MIGRATION.md)** — Replace dcgm-exporter + Prometheus with keda-gpu-scaler
 - **[HPC & Cross-Environment Metrics](docs/hpc.md)** — SLURM, Flux, Kubernetes, and standalone GPU metrics
@@ -401,6 +402,14 @@ Using keda-gpu-scaler? Add your organization to [ADOPTERS.md](ADOPTERS.md).
 Thanks to everyone who helps build keda-gpu-scaler.
 
 See [CONTRIBUTORS.md](CONTRIBUTORS.md) for detailed contributions.
+
+---
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=pmady/keda-gpu-scaler&type=Date)](https://star-history.com/#pmady/keda-gpu-scaler&Date)
+
+---
 
 ## Contributing
 
