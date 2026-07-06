@@ -403,14 +403,6 @@ Thanks to everyone who helps build keda-gpu-scaler.
 
 See [CONTRIBUTORS.md](CONTRIBUTORS.md) for detailed contributions.
 
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=pmady/keda-gpu-scaler&type=Date)](https://star-history.com/#pmady/keda-gpu-scaler&Date)
-
----
-
 ## Contributing
 
 Contributions welcome — GPU autoscaling use cases, vendor support (AMD ROCm, Intel), or docs improvements. See [CONTRIBUTING.md](CONTRIBUTING.md).
